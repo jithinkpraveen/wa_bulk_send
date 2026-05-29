@@ -33,10 +33,14 @@ const STATUS_STYLE: Record<string, string> = {
     pending: 'bg-gray-100 text-gray-500',
 };
 
+// Deterministic, timezone-independent formatting so server and client render the
+// identical string (toLocaleString() varies by locale/TZ and breaks hydration).
 function fmt(ts: string | null): string {
     if (!ts) return '—';
     const d = new Date(ts);
-    return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+    if (isNaN(d.getTime())) return '—';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
 
 function csvCell(value: string): string {
