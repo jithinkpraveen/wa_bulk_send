@@ -16,8 +16,7 @@ import {
     FormMessage
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { DBTables } from "@/lib/enums/Tables"
-import { createClient } from "@/utils/supabase-browser"
+import { createContactWithTags } from "@/lib/contacts/actions"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ReactNode, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -36,7 +35,8 @@ const FormSchema = z.object({
 })
 
 export function AddContactDialog({ children, onSuccessfulAdd }: { children: ReactNode, onSuccessfulAdd: () => void }) {
-    const [ isDialogOpen, setDialogOpen] = useState(false); 
+    const [ isDialogOpen, setDialogOpen] = useState(false);
+    const [ errorMessage, setErrorMessage ] = useState('');
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
@@ -48,20 +48,15 @@ export function AddContactDialog({ children, onSuccessfulAdd }: { children: Reac
     })
 
     async function onSubmit(data: z.infer<typeof FormSchema>) {
+        setErrorMessage('')
         const mobileNumber = data.country.phoneCode.replace(/[\+\-]/, '') + data.wa_number
         const wa_id = Number.parseInt(mobileNumber)
         const tags = (data.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean)
-        const supabaseClient = createClient()
-        if (tags.length > 0) {
-            const { error: tagErr } = await supabaseClient
-                .from('contact_tag')
-                .upsert(tags.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true })
-            if (tagErr) throw tagErr
+        const res = await createContactWithTags({ waId: wa_id, name: data.name, tags })
+        if (res?.error) {
+            setErrorMessage(res.error)
+            return
         }
-        const { error } = await supabaseClient
-            .from(DBTables.Contacts)
-            .insert({ profile_name: data.name, wa_id: wa_id, tags: tags.length > 0 ? tags : null })
-        if (error) throw error
         form.reset()
         setDialogOpen(false)
         onSuccessfulAdd()
@@ -129,6 +124,7 @@ export function AddContactDialog({ children, onSuccessfulAdd }: { children: Reac
                                 </FormItem>
                             )}
                         />
+                        {errorMessage && <span className="text-sm text-red-500">{errorMessage}</span>}
                         <DialogFooter>
                             <Button type="submit">Add</Button>
                         </DialogFooter>

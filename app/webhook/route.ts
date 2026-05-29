@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
               .from(DBTables.Contacts)
               .upsert({
                 wa_id: contact.wa_id,
-                profile_name: contact.profile.name,
+                // Some events omit `profile`; leaving profile_name undefined drops it
+                // from the upsert so an existing contact's name is preserved.
+                profile_name: contact.profile?.name,
                 last_message_at: new Date(),
                 in_chat: true,
               })

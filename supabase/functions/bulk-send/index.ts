@@ -3,7 +3,6 @@ import { Response } from "https://esm.sh/v133/@supabase/node-fetch@2.6.14/denone
 import { SupabaseClientType, createSupabaseClient } from "../_shared/client.ts";
 import { PARALLEL_BATCH_COUNT, PROCESSING_LIMIT } from "../_shared/constants.ts";
 import { corsHeaders } from '../_shared/cors.ts';
-import { runInBackground } from "../_shared/background.ts";
 import { TemplateParameters } from "../_shared/template-components.ts";
 import { Json } from "../_shared/database.types.ts";
 import { parseContactsCsv } from "../_shared/contacts-csv.ts";
@@ -181,8 +180,10 @@ serve(async (req) => {
     const broadcastId: string = broadcast[0].id
     console.log(`Broadcast created - ${broadcastId}`)
 
-    // Mark contacts + fan out workers in the background so this responds quickly.
-    runInBackground(startBroadcast(supabase, broadcast[0], requestData))
+    // Mark contacts + fan out workers synchronously. Background execution via
+    // EdgeRuntime.waitUntil proved unreliable here (scheduled_count stayed null),
+    // so we await the work to guarantee contacts are marked and workers dispatched.
+    await startBroadcast(supabase, broadcast[0], requestData)
 
     return new Response(
       JSON.stringify({ success: true, broadcastId }),
@@ -190,7 +191,16 @@ serve(async (req) => {
     )
   } catch (e) {
     console.error('bulk-send failed', e)
-    const message = e instanceof Error ? e.message : 'Failed to start broadcast'
+    // Supabase/PostgREST errors are plain objects (not Error instances) carrying
+    // message/details/hint/code — extract whatever is present.
+    let message = 'Failed to start broadcast'
+    if (e instanceof Error) {
+      message = e.message
+    } else if (e && typeof e === 'object') {
+      const o = e as { message?: string; details?: string; hint?: string; code?: string }
+      message = o.message || o.details || o.hint || JSON.stringify(e)
+      if (o.code) message = `[${o.code}] ${message}`
+    }
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },

@@ -5,7 +5,6 @@ import { SupabaseClientType, createSupabaseClient } from "../_shared/client.ts";
 import { sendTemplateMessage } from "./send-message.ts";
 import { PARALLEL_SEND_MESSAGE_COUNT } from "../_shared/constants.ts";
 import { Template } from "../setup/message_template.ts";
-import { runInBackground } from "../_shared/background.ts";
 import { ContactLike, TemplateParameters, buildTemplateComponents } from "../_shared/template-components.ts";
 
 type MessageBatchReq = {
@@ -179,9 +178,9 @@ serve(async (req) => {
     }
     const messageBatchReq: MessageBatchReq = await req.json()
 
-    // Process the batch in the background so the caller (and the recursive
-    // hand-off) returns immediately instead of holding the connection open.
-    runInBackground(processNextBatch(supabase, messageBatchReq))
+    // Process synchronously (EdgeRuntime.waitUntil background execution proved
+    // unreliable here). The recursive hand-off drains remaining batches.
+    await processNextBatch(supabase, messageBatchReq)
 
     return new Response(
         JSON.stringify({ success: true }),

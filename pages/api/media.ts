@@ -19,7 +19,7 @@ export default async function handler(
         'Accept': '*/*',
     }
 
-    const response: Response = await fetch(`https://graph.facebook.com/v15.0/${mediaId}`, { headers: headerOptions })
+    const response: Response = await fetch(`https://graph.facebook.com/v25.0/${mediaId}`, { headers: headerOptions })
     const mediaResponse: MediaResponse = await response.json()
 
     const media = await httpsGet(mediaResponse.url, { headers: headerOptions })  // because fetch is not working :(

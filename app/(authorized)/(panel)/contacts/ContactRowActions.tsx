@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { saveContactTags } from "@/lib/contacts/actions"
 import { Contact } from "@/types/contact"
-import { createClient } from "@/utils/supabase-browser"
 import { MoreHorizontal } from "lucide-react"
 import { useState } from "react"
 
@@ -29,21 +29,13 @@ export default function ContactRowActions({ contact, onUpdated }: { contact: Con
         setSaving(true)
         setError('')
         try {
-            const tags = parseTags(value)
-            const supabase = createClient()
-            if (tags.length > 0) {
-                const { error: tagErr } = await supabase
-                    .from('contact_tag')
-                    .upsert(tags.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true })
-                if (tagErr) { setError('Could not save tags'); return }
-            }
-            const { error: updErr } = await supabase
-                .from('contacts')
-                .update({ tags: tags.length > 0 ? tags : null })
-                .eq('wa_id', contact.wa_id)
-            if (updErr) { setError('Could not update contact'); return }
+            const res = await saveContactTags(contact.wa_id, parseTags(value))
+            if (res?.error) { setError(res.error); return }
             setOpen(false)
             onUpdated()
+        } catch (e) {
+            console.error('save tags failed', e)
+            setError('Could not update tags')
         } finally {
             setSaving(false)
         }

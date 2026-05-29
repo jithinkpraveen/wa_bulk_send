@@ -25,7 +25,7 @@ export async function downloadMedia(imageMessage: WebhookMessage) {
         'User-Agent': 'curl/7.84.0',
         'Accept': '*/*',
     }
-    const firstResponse: Response = await fetch(`https://graph.facebook.com/v15.0/${imageDetails.id}`, { headers: headerOptions })
+    const firstResponse: Response = await fetch(`https://graph.facebook.com/v25.0/${imageDetails.id}`, { headers: headerOptions })
 
     if (!firstResponse.ok) {
         const responseText = await firstResponse.text()
