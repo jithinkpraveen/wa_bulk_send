@@ -30,7 +30,7 @@ export default function PanelClient({ children }: { children: ReactNode }) {
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                         <MessageCircle className="h-5 w-5" />
                     </div>
-                    <span className="text-lg font-semibold tracking-tight">Receevi</span>
+                    <span className="text-lg font-semibold tracking-tight">Carehands</span>
                 </div>
                 <nav className="flex-1 p-3 space-y-1">
                     {navItems.map(({ href, label, icon: Icon }) => {
