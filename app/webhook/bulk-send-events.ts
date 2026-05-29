@@ -80,9 +80,12 @@ export async function updateBroadCastReplyStatus(messages: WebhookMessage[]) {
         if (countUpdateError) {
           console.error(`Error while updating count for singleContact.broadcast_id: ${singleContact.broadcast_id}, message.id: ${message.id}`, countUpdateError)
         } else {
+          const repliedAt = message.timestamp
+            ? new Date(Number.parseInt(message.timestamp) * 1000)
+            : new Date()
           const { error: broadcastContactUpdateError } = await supabase
             .from('broadcast_contact')
-            .update({ reply_counted: true })
+            .update({ reply_counted: true, replied_at: repliedAt })
             .eq('id', singleContact.id)
           if (broadcastContactUpdateError) {
             console.error(`Error while updating singleContact.id: ${singleContact.id}, message.id: ${message.id}`, broadcastContactUpdateError)

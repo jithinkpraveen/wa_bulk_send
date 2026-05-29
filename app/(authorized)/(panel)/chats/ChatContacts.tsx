@@ -7,17 +7,16 @@ export const revalidate = 0
 
 export default function ChatContacts() {
     const contactState = useContacts();
-    if (contactState) {
-        return (
-            <div className="flex flex-col">
-                <ChatContactsClient contacts={contactState.contacts} />
+    return (
+        <div className="flex flex-col h-full">
+            <div className="h-16 flex items-center px-4 border-b bg-panel-header-background">
+                <h2 className="font-semibold text-primary-strong">Chats</h2>
             </div>
-        )
-    } else {
-        return (
-            <div>
-                Unable to fetch contacts
+            <div className="flex-1 overflow-y-auto">
+                {contactState
+                    ? <ChatContactsClient contacts={contactState.contacts} />
+                    : <div className="p-4 text-sm text-muted-foreground">Unable to fetch contacts</div>}
             </div>
-        )
-    }
+        </div>
+    )
 }

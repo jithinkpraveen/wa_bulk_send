@@ -1,3 +1,5 @@
+import { WHATSAPP_API_VERSION } from "../_shared/constants.ts";
+
 type Contact = {
     input: string;
     wa_id: string;
@@ -15,17 +17,27 @@ type SendMessageResponse = {
 };
 
 
-export async function sendTemplateMessage(templateName: string, language: string, contact_id: string) {
+export async function sendTemplateMessage(
+    templateName: string,
+    language: string,
+    contact_id: string,
+    components?: unknown[],
+) {
+    const template: Record<string, unknown> = {
+        "name": templateName,
+        "language": {
+            "code": language
+        },
+    }
+    if (components && components.length > 0) {
+        template["components"] = components
+    }
     const payload = {
         "messaging_product": "whatsapp",
+        "recipient_type": "individual",
         "to": contact_id,
         "type": "template",
-        "template": {
-            "name": templateName,
-            "language": {
-                "code": language
-            },
-        }
+        "template": template,
     }
     const WHATSAPP_ACCESS_TOKEN = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
     if (!WHATSAPP_ACCESS_TOKEN) {
@@ -39,16 +51,16 @@ export async function sendTemplateMessage(templateName: string, language: string
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`
     }
-    const url = `https://graph.facebook.com/v13.0/${WHATSAPP_API_PHONE_NUMBER_ID}/messages`
+    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_API_PHONE_NUMBER_ID}/messages`
     const res = await fetch(url, {
         headers: headers,
         method: 'POST',
         body: JSON.stringify(payload)
     })
     if (!res.ok) {
-        const responseStatus = await res.status
+        const responseStatus = res.status
         const response = await res.text()
-        throw new Error(responseStatus + response);
+        throw new Error(`WhatsApp send failed (${responseStatus}): ${response}`);
     }
     const responseData: SendMessageResponse = await res.json()
     return { payload, response: responseData };

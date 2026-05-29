@@ -31,7 +31,8 @@ const FormSchema = z.object({
     wa_number: z.string({
         required_error: "Mobile number is required",
     }).min(7),
-    country: countryFormType
+    country: countryFormType,
+    tags: z.string().optional(),
 })
 
 export function AddContactDialog({ children, onSuccessfulAdd }: { children: ReactNode, onSuccessfulAdd: () => void }) {
@@ -42,14 +43,24 @@ export function AddContactDialog({ children, onSuccessfulAdd }: { children: Reac
             name: "",
             wa_number: "",
             country: undefined,
+            tags: "",
         }
     })
 
     async function onSubmit(data: z.infer<typeof FormSchema>) {
         const mobileNumber = data.country.phoneCode.replace(/[\+\-]/, '') + data.wa_number
         const wa_id = Number.parseInt(mobileNumber)
+        const tags = (data.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean)
         const supabaseClient = createClient()
-        const { error } = await supabaseClient.from(DBTables.Contacts).insert({ profile_name: data.name, wa_id: wa_id })
+        if (tags.length > 0) {
+            const { error: tagErr } = await supabaseClient
+                .from('contact_tag')
+                .upsert(tags.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true })
+            if (tagErr) throw tagErr
+        }
+        const { error } = await supabaseClient
+            .from(DBTables.Contacts)
+            .insert({ profile_name: data.name, wa_id: wa_id, tags: tags.length > 0 ? tags : null })
         if (error) throw error
         form.reset()
         setDialogOpen(false)
@@ -105,6 +116,19 @@ export function AddContactDialog({ children, onSuccessfulAdd }: { children: Reac
                                 )}
                             />
                         </div>
+                        <FormField
+                            control={form.control}
+                            name="tags"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Tags (comma separated)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="vip, lead" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <DialogFooter>
                             <Button type="submit">Add</Button>
                         </DialogFooter>

@@ -6,15 +6,14 @@ import { UPDATE_CURRENT_CONTACT, useCurrentContactDispatch } from "./CurrentCont
 export default function ContactUI(props: { contact: Contact }) {
     const { contact } = props;
     const setCurrentContact = useCurrentContactDispatch()
+    const displayName = contact.profile_name || contact.wa_id.toString()
     return (
         <Link href={`/chats/${contact.wa_id}`} onClick={() => { setCurrentContact && setCurrentContact({ type: UPDATE_CURRENT_CONTACT, waId: contact.wa_id }) }}>
-            <div className="flex flex-row p-2 hover:bg-background-default-hover gap-4 cursor-pointer">
-                <div>
-                    <BlankUser className="w-12 h-12" />
-                </div>
-                <div className="flex items-center">
-                    <span>{contact.wa_id} ({contact.profile_name})</span>
-                    {/* TODO: Add some indication that this row is selected based on condition - contact.is_current */}
+            <div className="flex flex-row items-center px-4 py-3 hover:bg-background-default-hover gap-3 cursor-pointer border-b border-gray-100">
+                <BlankUser className="w-12 h-12 shrink-0" />
+                <div className="min-w-0 flex-1">
+                    <div className="font-medium text-primary-strong truncate">{displayName}</div>
+                    <div className="text-sm text-gray-500 truncate">{contact.wa_id}</div>
                 </div>
             </div>
         </Link>

@@ -2,71 +2,60 @@
 // https://deno.land/manual/getting_started/setup_your_environment
 // This enables autocomplete, go to definition, etc.
 import { corsHeaders } from '../_shared/cors.ts';
-import { parse } from "https://deno.land/std@0.218.2/csv/mod.ts";
 import { createSupabaseClient } from "../_shared/client.ts";
-import { Database } from "../_shared/database.types.ts";
-
-export type ContactTag = Database['public']['Tables']['contact_tag']['Insert']
-export type Contact = Database['public']['Tables']['contacts']['Insert']
-
-type CSVData = {
-  name: string,
-  number: string,
-  tags: string
-}
+import { parseContactsCsv } from "../_shared/contacts-csv.ts";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const authorizationHeader = req.headers.get('Authorization')!
-  const supabase = createSupabaseClient(authorizationHeader)
+  try {
+    const authorizationHeader = req.headers.get('Authorization')!
+    const supabase = createSupabaseClient(authorizationHeader)
 
-  const csvData = await req.text()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+      )
+    }
 
-  const contactData = parse(csvData, {
-    skipFirstRow: true,
-    strip: true,
-    columns: ["name", "number", "tags"],
-  })
-  const niceData: Contact[] = []
-  const uniqueTags: ContactTag[] = []
-  for (const row of contactData) {
-    const niceRow = {
-      profile_name: row.name,
-      wa_id: row.number,
-      tags: row.tags.split(',').map((tag: string) => tag.trim())
+    const csvData = await req.text()
+    const { contacts, tagNames, skipped } = parseContactsCsv(csvData)
+
+    if (tagNames.length > 0) {
+      const { error: contactTagsInsertError } = await supabase
+        .from('contact_tag')
+        .upsert(tagNames.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true })
+      if (contactTagsInsertError) throw contactTagsInsertError
     }
-    niceData.push(niceRow)
-    if (niceRow.tags.length > 0) {
-      niceRow.tags.forEach((tag: string) => {
-        if (!uniqueTags.find((tagItem) => tagItem.name === tag)) {
-          uniqueTags.push({ name: tag})
-        }
-      })
+
+    if (contacts.length > 0) {
+      const { error: contactInsertError } = await supabase
+        .from('contacts')
+        .upsert(contacts, { onConflict: 'wa_id' })
+      if (contactInsertError) throw contactInsertError
     }
+
+    return new Response(
+      JSON.stringify({ inserted: contacts.length, tags: tagNames.length, skipped }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } },
+    )
+  } catch (e) {
+    console.error('insert-bulk-contacts failed', e)
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : 'Failed to import contacts' }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+    )
   }
-  const { error: contactTagsInsertError } = await supabase
-    .from('contact_tag')
-    .upsert(uniqueTags, { onConflict: 'name' })
-  if (contactTagsInsertError) throw contactTagsInsertError
-
-  const { error: contactInsertError } = await supabase
-    .from('contacts')
-    .upsert(niceData)
-  if (contactInsertError) throw contactInsertError
-
-  await new Promise((resolve) => setTimeout(resolve, 5000))
-
-  return new Response(
-    JSON.stringify({ message: "hello" }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } },
-  )
 })
 
 // To invoke:
-// curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/' \
-//   --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
-//   --header 'Content-Type: application/json' \
-//   --data '{"name":"Functions"}'
+// curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/insert-bulk-contacts' \
+//   --header 'Authorization: Bearer <token>' \
+//   --header 'Content-Type: text/csv' \
+//   --data-binary $'Name,Number,Tags\nJohn,15551234567,"vip,lead"'

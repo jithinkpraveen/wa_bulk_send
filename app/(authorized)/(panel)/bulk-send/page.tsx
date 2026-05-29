@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button"
 import {
     Table,
     TableBody,
-    TableCaption,
     TableCell,
     TableHead,
     TableHeader,
@@ -10,54 +9,8 @@ import {
 } from "@/components/ui/table"
 import BroadcastServerFactory from "@/lib/repositories/broadcast/BroadcastServerFactory"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
 import PaginationButton from "./PaginationButton"
 import WatchForChanges from "./WatchForChanges"
-
-const invoices = [
-    {
-        invoice: "INV001",
-        paymentStatus: "Paid",
-        totalAmount: "$250.00",
-        paymentMethod: "Credit Card",
-    },
-    {
-        invoice: "INV002",
-        paymentStatus: "Pending",
-        totalAmount: "$150.00",
-        paymentMethod: "PayPal",
-    },
-    {
-        invoice: "INV003",
-        paymentStatus: "Unpaid",
-        totalAmount: "$350.00",
-        paymentMethod: "Bank Transfer",
-    },
-    {
-        invoice: "INV004",
-        paymentStatus: "Paid",
-        totalAmount: "$450.00",
-        paymentMethod: "Credit Card",
-    },
-    {
-        invoice: "INV005",
-        paymentStatus: "Paid",
-        totalAmount: "$550.00",
-        paymentMethod: "PayPal",
-    },
-    {
-        invoice: "INV006",
-        paymentStatus: "Pending",
-        totalAmount: "$200.00",
-        paymentMethod: "Bank Transfer",
-    },
-    {
-        invoice: "INV007",
-        paymentStatus: "Unpaid",
-        totalAmount: "$300.00",
-        paymentMethod: "Credit Card",
-    },
-]
 
 export default async function BulkSendPage({
     params,
@@ -82,9 +35,14 @@ export default async function BulkSendPage({
         <>
             <WatchForChanges page={page} />
             <div className="space-y-4">
-                <div className="text-right">
+                <div className="flex items-center justify-between pt-2">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">Bulk Send</h1>
+                        <p className="text-sm text-muted-foreground">Send WhatsApp templates to your tagged contacts.</p>
+                    </div>
                     <Link href="/bulk-send/new-broadcast"><Button>New Broadcast</Button></Link>
                 </div>
+                <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -99,9 +57,20 @@ export default async function BulkSendPage({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
+                        {broadcasts.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                                    No broadcasts yet. Create your first one with “New Broadcast”.
+                                </TableCell>
+                            </TableRow>
+                        )}
                         {broadcasts.map((broadcast) => (
                             <TableRow key={broadcast.id}>
-                                <TableCell className="font-medium">{broadcast.name}</TableCell>
+                                <TableCell className="font-medium">
+                                    <Link href={`/bulk-send/${broadcast.id}`} className="text-primary hover:underline">
+                                        {broadcast.name}
+                                    </Link>
+                                </TableCell>
                                 <TableCell>{broadcast.template_name} - {broadcast.language}</TableCell>
                                 <TableCell>{broadcast.contact_tags?.join(', ')}</TableCell>
                                 <TableCell>{broadcast.created_at}</TableCell>
@@ -113,6 +82,7 @@ export default async function BulkSendPage({
                         ))}
                     </TableBody>
                 </Table>
+                </div>
                 <div className="text-right space-x-2">
                     <PaginationButton pagesToAdd={-1}>Previous</PaginationButton>
                     <PaginationButton pagesToAdd={1}>Next</PaginationButton>

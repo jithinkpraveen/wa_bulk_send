@@ -9,6 +9,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
   let success = false;
+  let errorMessage: string | undefined
   try {
     const authorizationHeader = req.headers.get('Authorization')!
     const supabase = createClient(
@@ -31,10 +32,12 @@ serve(async (req) => {
   } catch (e) {
     console.error(e)
     success = false
+    errorMessage = e instanceof Error ? e.message : 'Setup failed'
   }
 
   const data = {
     success: success,
+    error: errorMessage,
   }
 
   return new Response(

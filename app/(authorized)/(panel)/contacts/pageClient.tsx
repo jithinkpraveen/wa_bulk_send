@@ -6,24 +6,17 @@ import {
     getPaginationRowModel,
     getSortedRowModel, PaginationState, SortingState, useReactTable, VisibilityState
 } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    DropdownMenu, DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from "react"
 import { Contact } from "@/types/contact"
 import Loading from "../../../loading"
 import { AddContactDialog } from "./AddContactDialog"
+import ContactRowActions from "./ContactRowActions"
 import { ContactsTable } from "./ContactsTable"
 import { fetchData, itemsPerPage } from "./fetchData"
 import { AddBulkContactsDialog } from "./AddBulkContactsDialog"
@@ -75,29 +68,30 @@ export default function ContactsClient() {
                 accessorKey: "tags",
                 header: 'Tags',
                 size: 280,
-                cell: ({ row }) => <div>{(row.getValue('tags') as unknown as string[])?.join(", ")}</div>,
+                cell: ({ row }) => {
+                    const tags = row.getValue('tags') as unknown as string[] | null
+                    if (!tags || tags.length === 0) return <span className="text-muted-foreground">—</span>
+                    return (
+                        <div className="flex flex-wrap gap-1">
+                            {tags.map((tag) => (
+                                <span key={tag} className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )
+                },
             },
             {
                 id: "actions",
                 size: 40,
                 enableHiding: false,
-                cell: ({ row }) => {
-                    return (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>Coming soon</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    )
-                },
+                cell: ({ row, table }) => (
+                    <ContactRowActions
+                        contact={row.original}
+                        onUpdated={() => (table.options.meta as { refetch?: () => void } | undefined)?.refetch?.()}
+                    />
+                ),
             },
         ],
         []
@@ -149,6 +143,9 @@ export default function ContactsClient() {
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
         onPaginationChange: setPagination,
+        meta: {
+            refetch: () => { dataQuery.refetch() },
+        },
         state: {
             sorting,
             columnVisibility,
@@ -159,19 +156,23 @@ export default function ContactsClient() {
 
     return (
         <div className="w-full">
-            <div className="flex justify-between items-center py-4">
+            <div className="pt-2 pb-1">
+                <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
+                <p className="text-sm text-muted-foreground">Manage your contacts and import them in bulk.</p>
+            </div>
+            <div className="flex justify-between items-center gap-2 py-4">
                 <Input
                     placeholder="Search name..."
                     value={searchFilter}
                     onChange={(event) => setSearchFilter(event.target.value) }
                     className="max-w-sm"
                 />
-                <div className="space-x-2">
+                <div className="flex gap-2">
                     <AddBulkContactsDialog onSuccessfulAdd={dataQuery.refetch}>
-                        <Button className="ml-auto">Add Bulk Contacts via CSV</Button>
+                        <Button variant="outline">Import CSV</Button>
                     </AddBulkContactsDialog>
                     <AddContactDialog onSuccessfulAdd={dataQuery.refetch}>
-                        <Button className="ml-auto">Add Contact</Button>
+                        <Button>Add Contact</Button>
                     </AddContactDialog>
                 </div>
             </div>

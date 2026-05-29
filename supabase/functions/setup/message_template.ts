@@ -1,5 +1,6 @@
 import { SetupCore } from "./setup_core.ts";
 import { SupabaseClientType } from "../_shared/supabase_types.ts";
+import { WHATSAPP_API_VERSION } from "../_shared/constants.ts";
 
 export type Button = {
     type: string;
@@ -56,7 +57,7 @@ export class MessageTemplateSetup extends SetupCore {
 
         const token = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
         const fetchLimit = 10
-        let next = `https://graph.facebook.com/v17.0/${whatsappBusinessAccountId}/message_templates?limit=${fetchLimit}`;
+        let next = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${whatsappBusinessAccountId}/message_templates?limit=${fetchLimit}`;
         while (next) {
             console.log(`Fetch url: ${next}`)
             const response = await fetch(next, {

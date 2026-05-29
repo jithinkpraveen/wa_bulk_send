@@ -48,6 +48,7 @@ export interface Database {
           scheduled_count: number | null
           sent_count: number
           template_name: string
+          template_parameters: Json | null
         }
         Insert: {
           contact_tags?: string[] | null
@@ -62,6 +63,7 @@ export interface Database {
           scheduled_count?: number | null
           sent_count?: number
           template_name: string
+          template_parameters?: Json | null
         }
         Update: {
           contact_tags?: string[] | null
@@ -76,6 +78,7 @@ export interface Database {
           scheduled_count?: number | null
           sent_count?: number
           template_name?: string
+          template_parameters?: Json | null
         }
         Relationships: []
       }

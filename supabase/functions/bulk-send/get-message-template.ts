@@ -1,10 +1,11 @@
+import { WHATSAPP_API_VERSION } from "../_shared/constants.ts";
 import { MessageTemplateResponse } from "../setup/message_template.ts";
 
 export async function getMessageTemplate(name: string, language: string) {
     const whatsappBusinessAccountId = Deno.env.get('WHATSAPP_BUSINESS_ACCOUNT_ID')
     if (!whatsappBusinessAccountId) throw new Error("WHATSAPP_BUSINESS_ACCOUNT_ID environment variable is not set")
     const token = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
-    const url = `https://graph.facebook.com/v17.0/${whatsappBusinessAccountId}/message_templates`;
+    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${whatsappBusinessAccountId}/message_templates`;
     const params = new URLSearchParams();
     params.set('name', name);
     params.set('language', language);

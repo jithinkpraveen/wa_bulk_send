@@ -23,20 +23,6 @@ import { ReactNode, useState } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
-const MAX_FILE_SIZE = 500000;
-const ACCEPTED_IMAGE_TYPES = ["text/csv"];
-
-const FormSchema1 = z.object({
-    file: z
-        .any()
-        .refine((file) => file?.length > 0, "CSV file is required.")
-        // .refine((file) => file?.[0]?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
-        .refine(
-            (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
-            "Only .csv files are accepted."
-        ),
-})
-
 const FormSchema = z.object({
     bulkfile: typeof window === 'undefined' ? z.any() : z.instanceof(FileList).refine((file) => file?.length == 1, 'File is required.')
 });
@@ -56,26 +42,35 @@ export function AddBulkContactsDialog({ children, onSuccessfulAdd }: { children:
     const fileRef = form.register("bulkfile");
 
     async function onSubmit(data: z.infer<typeof FormSchema>) {
-        // console.log('data', data)
         setLoading(true)
         setErrorMessage('')
-        const bulkfile = data.bulkfile && data.bulkfile[0]
-        // console.log('bulkfile', bulkfile)
-        const csvData = await bulkfile.text()
-        const dataToSend = {
-            csvData: csvData
-        };
-        const res = await supabase.functions.invoke("insert-bulk-contacts", {
-            body: csvData,
-        });
-        setLoading(false)
-        if (res.error) {
-            console.error('Error while sending bulk csv', res.error)
-            setErrorMessage("Something went wrong")
-            return;
+        try {
+            const bulkfile = data.bulkfile?.[0]
+            if (!bulkfile) {
+                setErrorMessage('Please choose a CSV file.')
+                return
+            }
+            const csvData = await bulkfile.text()
+            const res = await supabase.functions.invoke("insert-bulk-contacts", {
+                body: csvData,
+            });
+            if (res.error) {
+                console.error('Error while sending bulk csv', res.error)
+                let message = 'Something went wrong'
+                // FunctionsHttpError exposes the failed Response via `context`; read the error our function returned.
+                try {
+                    const body = await (res.error as any)?.context?.json?.()
+                    if (body?.error) message = body.error
+                } catch (_) { /* keep generic message */ }
+                setErrorMessage(message)
+                return;
+            }
+            form.reset()
+            setDialogOpen(false)
+            onSuccessfulAdd()
+        } finally {
+            setLoading(false)
         }
-        console.log('inserting bulk contacts done')
-        setDialogOpen(false)
     }
 
     return (

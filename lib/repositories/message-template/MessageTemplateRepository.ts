@@ -32,5 +32,6 @@ export type MessageTemplateFilterArray = Array<{ column: MessageTemplateColumnNa
 export interface MessageTemplateRepository {
     getMessageTemplateUniqueNames(): Promise<string[]>
     getMessageTemplateLanguages(messageTemplateName: string): Promise<string[]>
+    getMessageTemplate(name: string, language: string): Promise<MessageTemplate | null>
 }
 
