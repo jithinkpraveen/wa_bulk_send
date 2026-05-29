@@ -143,45 +143,57 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const authorizationHeader = req.headers.get('Authorization')!
-  const supabase = createSupabaseClient(authorizationHeader)
+  try {
+    const authorizationHeader = req.headers.get('Authorization')!
+    const supabase = createSupabaseClient(authorizationHeader)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    return new Response('', { status: 401, headers: corsHeaders })
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      )
+    }
+    const requestData: BulkSendRequest = await req.json()
+
+    // In CSV mode the audience is the auto-created tag named after the broadcast.
+    const effectiveTags = requestData.csvData ? [requestData.name] : requestData.contactTags
+
+    const { data: broadcast, error } = await supabase
+      .from('broadcast')
+      .insert([
+        {
+          name: requestData.name,
+          template_name: requestData.messageTemplate,
+          contact_tags: effectiveTags,
+          language: requestData.language,
+          template_parameters: (requestData.templateParameters ?? null) as Json,
+        },
+      ])
+      .select()
+    if (error) throw error
+    if (!broadcast || broadcast.length <= 0) {
+      throw new Error(`failed to create broadcast. name: ${requestData.name} template_name: ${requestData.messageTemplate}`)
+    }
+    const broadcastId: string = broadcast[0].id
+    console.log(`Broadcast created - ${broadcastId}`)
+
+    // Mark contacts + fan out workers in the background so this responds quickly.
+    runInBackground(startBroadcast(supabase, broadcast[0], requestData))
+
+    return new Response(
+      JSON.stringify({ success: true, broadcastId }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } },
+    )
+  } catch (e) {
+    console.error('bulk-send failed', e)
+    const message = e instanceof Error ? e.message : 'Failed to start broadcast'
+    return new Response(
+      JSON.stringify({ error: message }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+    )
   }
-  const requestData: BulkSendRequest = await req.json()
-
-  // In CSV mode the audience is the auto-created tag named after the broadcast.
-  const effectiveTags = requestData.csvData ? [requestData.name] : requestData.contactTags
-
-  const { data: broadcast, error } = await supabase
-    .from('broadcast')
-    .insert([
-      {
-        name: requestData.name,
-        template_name: requestData.messageTemplate,
-        contact_tags: effectiveTags,
-        language: requestData.language,
-        template_parameters: (requestData.templateParameters ?? null) as Json,
-      },
-    ])
-    .select()
-  if (error) throw error
-  if (!broadcast || broadcast.length <= 0) {
-    throw new Error(`failed to create broadcast. name: ${requestData.name} template_name: ${requestData.messageTemplate}`)
-  }
-  const broadcastId: string = broadcast[0].id
-  console.log(`Broadcast created - ${broadcastId}`)
-
-  // Mark contacts + fan out workers in the background so this responds quickly.
-  runInBackground(startBroadcast(supabase, broadcast[0], requestData))
-
-  return new Response(
-    JSON.stringify({ success: true, broadcastId }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } },
-  )
 })

@@ -88,7 +88,13 @@ export async function bulkSend(prevState: { message: string }, formData: FormDat
     })
     if (error) {
         console.error('error while initiating bulk send', error)
-        return { message: "Could not start the broadcast. Please try again." }
+        let message = "Could not start the broadcast. Please try again."
+        // The function returns its real error in the response body; surface it.
+        try {
+            const body = await (error as { context?: { json?: () => Promise<{ error?: string }> } })?.context?.json?.()
+            if (body?.error) message = body.error
+        } catch { /* keep generic message */ }
+        return { message }
     }
     revalidatePath('/bulk-send', 'page');
     redirect('/bulk-send');
