@@ -54,7 +54,9 @@ export function AddBulkContactsDialog({ children, onSuccessfulAdd }: { children:
             const csvData = await bulkfile.text()
             const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
             const res = await supabase.functions.invoke("insert-bulk-contacts", {
-                body: { csvData, tags },
+                // Raw CSV (back-compatible with older function builds) when no extra
+                // tag is given; JSON only when applying a tag to every contact.
+                body: tags.length > 0 ? { csvData, tags } : csvData,
             });
             if (res.error) {
                 console.error('Error while sending bulk csv', res.error)
