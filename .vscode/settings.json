@@ -4,4 +4,8 @@
         "./supabase/functions"
     ],
     "deno.importMap": "./supabase/functions/import_map.json",
+    // Imported contact names contain emoji / non-ASCII; stop the editor flagging
+    // "could be confused with ASCII" on data files.
+    "editor.unicodeHighlight.ambiguousCharacters": false,
+    "editor.unicodeHighlight.nonBasicASCII": false,
 }
