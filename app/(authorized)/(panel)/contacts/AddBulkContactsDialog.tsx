@@ -32,6 +32,7 @@ export function AddBulkContactsDialog({ children, onSuccessfulAdd }: { children:
     const [supabase] = useState(() => createClient())
     const [isLoading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string>('');
+    const [tagsInput, setTagsInput] = useState<string>('');
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         /*defaultValues: {
@@ -51,8 +52,9 @@ export function AddBulkContactsDialog({ children, onSuccessfulAdd }: { children:
                 return
             }
             const csvData = await bulkfile.text()
+            const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
             const res = await supabase.functions.invoke("insert-bulk-contacts", {
-                body: csvData,
+                body: { csvData, tags },
             });
             if (res.error) {
                 console.error('Error while sending bulk csv', res.error)
@@ -66,6 +68,7 @@ export function AddBulkContactsDialog({ children, onSuccessfulAdd }: { children:
                 return;
             }
             form.reset()
+            setTagsInput('')
             setDialogOpen(false)
             onSuccessfulAdd()
         } finally {
@@ -100,6 +103,15 @@ export function AddBulkContactsDialog({ children, onSuccessfulAdd }: { children:
                                 </FormItem>
                             )}
                         />
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium">Tag for all imported contacts (optional)</label>
+                            <Input
+                                placeholder="e.g. lead"
+                                value={tagsInput}
+                                onChange={(e) => setTagsInput(e.target.value)}
+                            />
+                            <span className="text-xs text-muted-foreground">Applied to every contact in the file, in addition to the CSV&apos;s tags column.</span>
+                        </div>
                         {(() => {
                             if (errorMessage) {
                                 return (

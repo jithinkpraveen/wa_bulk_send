@@ -24,8 +24,22 @@ Deno.serve(async (req) => {
       )
     }
 
-    const csvData = await req.text()
-    const { contacts, tagNames, skipped } = parseContactsCsv(csvData)
+    // Body is either JSON `{ csvData, tags }` (tags applied to every contact) or
+    // a raw CSV string (older callers).
+    const raw = await req.text()
+    let csvData = raw
+    let extraTags: string[] = []
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && 'csvData' in parsed) {
+        csvData = parsed.csvData ?? ''
+        if (Array.isArray(parsed.tags)) extraTags = parsed.tags
+      }
+    } catch (_) {
+      // not JSON — treat the body as raw CSV
+    }
+
+    const { contacts, tagNames, skipped } = parseContactsCsv(csvData, extraTags)
 
     if (tagNames.length > 0) {
       const { error: contactTagsInsertError } = await supabase
