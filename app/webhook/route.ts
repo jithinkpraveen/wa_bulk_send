@@ -84,6 +84,23 @@ export async function POST(request: NextRequest) {
             }
           }
           await updateBroadCastReplyStatus(messages)
+
+          // Bump unread_count per chat so the sidebar shows who messaged.
+          const countsByChat: Record<string, number> = {}
+          for (const message of messages) {
+            countsByChat[message.from] = (countsByChat[message.from] ?? 0) + 1
+          }
+          for (const [waId, by] of Object.entries(countsByChat)) {
+            const { data: existing } = await supabase
+              .from(DBTables.Contacts)
+              .select('unread_count')
+              .eq('wa_id', waId)
+              .maybeSingle()
+            await supabase
+              .from(DBTables.Contacts)
+              .update({ unread_count: (existing?.unread_count ?? 0) + by })
+              .eq('wa_id', waId)
+          }
         }
         if (statuses && statuses.length > 0) {
           for (const status of statuses) {

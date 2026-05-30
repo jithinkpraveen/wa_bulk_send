@@ -185,6 +185,7 @@ export interface Database {
           last_message_at: string | null
           profile_name: string | null
           tags: string[] | null
+          unread_count: number | null
           wa_id: number
         }
         Insert: {
@@ -193,6 +194,7 @@ export interface Database {
           last_message_at?: string | null
           profile_name?: string | null
           tags?: string[] | null
+          unread_count?: number | null
           wa_id: number
         }
         Update: {
@@ -201,6 +203,7 @@ export interface Database {
           last_message_at?: string | null
           profile_name?: string | null
           tags?: string[] | null
+          unread_count?: number | null
           wa_id?: number
         }
         Relationships: []

@@ -33,14 +33,20 @@ async function sendWhatsAppMessage(to: string, message: string) {
     const wamId = response.messages[0].id;
     msgToPut['id'] = wamId
     const supabase = createServiceClient()
+    const chatId = Number.parseInt(response.contacts[0].wa_id)
     const supabaseResponse = await supabase
         .from(DBTables.Messages)
         .insert({
             message: msgToPut,
             wam_id: wamId,
-            chat_id: Number.parseInt(response.contacts[0].wa_id),
+            chat_id: chatId,
         })
     console.log(supabaseResponse)
+    // Bump the contact so the chat moves to the top of the list.
+    await supabase
+        .from(DBTables.Contacts)
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('wa_id', chatId)
 }
 
 export async function POST(request: NextRequest) {

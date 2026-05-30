@@ -49,7 +49,7 @@ export default function MessageListClient({ messages, from }: { messages: DBMess
         return () => { supabase.removeChannel(channel) }
     })
     return (
-        <div className="px-16 py-2 h-full overflow-y-auto" ref={messagesEndRef}>
+        <div className="px-4 md:px-12 py-2 h-full overflow-y-auto" ref={messagesEndRef}>
             {stateMessages.map((message, index) => {
                 const messageBody = message.message as MessageJson
                 const messageDateTime = new Date(message.created_at)

@@ -6,55 +6,53 @@ import { Contact } from "@/types/contact";
 import { createClient } from "@/utils/supabase-browser";
 import ContactUI from "./ContactUI";
 
+function byRecency(a: Contact, b: Contact): number {
+    const at = a.last_message_at ? new Date(a.last_message_at).getTime() : 0
+    const bt = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
+    return bt - at // newest first
+}
+
 export default function ChatContactsClient({ contacts }: { contacts: Contact[] }) {
     const [supabase] = useState(() => createClient())
-    const [contactsState, setContacts ] = useState<Contact[]>(contacts)
+    const [contactsState, setContacts] = useState<Contact[]>(() => [...contacts].sort(byRecency))
+
     useEffect(() => {
         const channel = supabase
-            .channel('any')
+            .channel('contacts-changes')
             .on<Contact>('postgres_changes', { event: '*', schema: 'public', table: DBTables.Contacts }, payload => {
-                switch(payload.eventType) {
-                    case "INSERT":
-                        contactsState.splice(0, 0, payload.new)
-                        setContacts([...contactsState])
-                        break;
-                    case "UPDATE":
-                        const indexOfItem = contactsState.findIndex((contact: Contact) => contact.wa_id == payload.old.wa_id)
-                        if (indexOfItem !== -1) {
-                            contactsState[indexOfItem] = payload.new
-                            contactsState.sort((a: Contact, b: Contact) => {
-                                if (!a.last_message_at || !b.last_message_at) {
-                                    return 0;
-                                }
-                                const aDate = new Date(a.last_message_at)
-                                const bDate =  new Date(b.last_message_at)
-                                if (aDate > bDate) {
-                                    return -1;
-                                } else if (bDate > aDate) {
-                                    return 1;
-                                }
-                                return 0;
-                            })
-                            setContacts([...contactsState])
-                        } else {
-                            console.warn(`Could not find contact to update contact for id: ${payload.old.wa_id}`)
+                setContacts(prev => {
+                    switch (payload.eventType) {
+                        case "INSERT": {
+                            const c = payload.new as Contact
+                            return [c, ...prev.filter(p => p.wa_id !== c.wa_id)].sort(byRecency)
                         }
-                        break;
-                    case "DELETE":
-                        const newContacts = contactsState.filter((item: Contact) => item.wa_id != payload.old.wa_id)
-                        setContacts(newContacts)
-                        break;
-                }
+                        case "UPDATE": {
+                            const updated = payload.new as Contact
+                            const exists = prev.some(p => p.wa_id === updated.wa_id)
+                            const next = exists
+                                ? prev.map(p => (p.wa_id === updated.wa_id ? updated : p))
+                                : [updated, ...prev] // became active (in_chat) — surface it
+                            return next.sort(byRecency)
+                        }
+                        case "DELETE":
+                            return prev.filter(p => p.wa_id !== (payload.old as Contact).wa_id)
+                        default:
+                            return prev
+                    }
+                })
             })
             .subscribe()
         return () => { supabase.removeChannel(channel) }
-    })
+    }, [supabase])
+
+    if (!contactsState || contactsState.length === 0) {
+        return <div className="p-4 text-sm text-muted-foreground">No conversations yet</div>
+    }
     return (
         <div className="flex flex-col">
-            {contactsState && contactsState.map(contact => {
-                return <ContactUI key={contact.wa_id} contact={contact} />
-            })}
-            {!contactsState && <div>No contacts to show</div>}
+            {contactsState.map(contact => (
+                <ContactUI key={contact.wa_id} contact={contact} />
+            ))}
         </div>
     )
 }
