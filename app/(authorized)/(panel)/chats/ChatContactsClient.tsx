@@ -12,7 +12,7 @@ function byRecency(a: Contact, b: Contact): number {
     return bt - at // newest first
 }
 
-export default function ChatContactsClient({ contacts }: { contacts: Contact[] }) {
+export default function ChatContactsClient({ contacts, search }: { contacts: Contact[], search?: string }) {
     const [supabase] = useState(() => createClient())
     const [contactsState, setContacts] = useState<Contact[]>(() => [...contacts].sort(byRecency))
 
@@ -45,12 +45,23 @@ export default function ChatContactsClient({ contacts }: { contacts: Contact[] }
         return () => { supabase.removeChannel(channel) }
     }, [supabase])
 
-    if (!contactsState || contactsState.length === 0) {
-        return <div className="p-4 text-sm text-muted-foreground">No conversations yet</div>
+    const term = (search ?? '').trim().toLowerCase()
+    const visible = term
+        ? contactsState.filter(c =>
+            (c.profile_name ?? '').toLowerCase().includes(term) ||
+            c.wa_id.toString().includes(term))
+        : contactsState
+
+    if (visible.length === 0) {
+        return (
+            <div className="p-4 text-sm text-muted-foreground">
+                {term ? 'No matches' : 'No conversations yet'}
+            </div>
+        )
     }
     return (
         <div className="flex flex-col">
-            {contactsState.map(contact => (
+            {visible.map(contact => (
                 <ContactUI key={contact.wa_id} contact={contact} />
             ))}
         </div>
