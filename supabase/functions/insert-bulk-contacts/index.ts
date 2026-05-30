@@ -2,7 +2,7 @@
 // https://deno.land/manual/getting_started/setup_your_environment
 // This enables autocomplete, go to definition, etc.
 import { corsHeaders } from '../_shared/cors.ts';
-import { createSupabaseClient } from "../_shared/client.ts";
+import { createServiceRoleClient, getBearerToken } from "../_shared/client.ts";
 import { parseContactsCsv } from "../_shared/contacts-csv.ts";
 
 Deno.serve(async (req) => {
@@ -11,12 +11,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authorizationHeader = req.headers.get('Authorization')!
-    const supabase = createSupabaseClient(authorizationHeader)
+    // Service-role client (bypasses the admin-only contacts RLS); the caller is
+    // still verified via their bearer token.
+    const supabase = createServiceRoleClient()
+    const token = getBearerToken(req.headers.get('Authorization'))
 
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser(token)
     if (!user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -61,8 +63,16 @@ Deno.serve(async (req) => {
     )
   } catch (e) {
     console.error('insert-bulk-contacts failed', e)
+    let message = 'Failed to import contacts'
+    if (e instanceof Error) {
+      message = e.message
+    } else if (e && typeof e === 'object') {
+      const o = e as { message?: string; details?: string; hint?: string; code?: string }
+      message = o.message || o.details || o.hint || JSON.stringify(e)
+      if (o.code) message = `[${o.code}] ${message}`
+    }
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : 'Failed to import contacts' }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
     )
   }
